@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import {
@@ -24,7 +24,15 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { sidebarOpen, toggleSidebar } = useAppStore();
+  const router = useRouter();
+  const { sidebarOpen, toggleSidebar, setUser } = useAppStore();
+
+  const handleLogout = () => {
+    if (confirm("Sign out? Your data will remain on this device.")) {
+      setUser(null);
+      router.push("/login");
+    }
+  };
 
   return (
     <aside
@@ -83,7 +91,10 @@ export function Sidebar() {
             <ChevronRight className="h-5 w-5" />
           </button>
         ) : (
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+          >
             <LogOut className="h-5 w-5" />
             <span className="font-medium">Sign Out</span>
           </button>
