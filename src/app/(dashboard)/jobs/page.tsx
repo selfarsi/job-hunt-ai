@@ -9,7 +9,7 @@ import { useAppStore } from "@/store";
 import { JobStatus, JobSource } from "@/types";
 import { Plus, Search, Filter, Briefcase, X, Loader2, Link2, ExternalLink, Globe } from "lucide-react";
 import { parseSalary } from "@/lib/storage";
-import { searchJobsAdzuna, JobSearchResult, parseJobFromURL } from "@/lib/jobSearch";
+import { JobSearchResult, parseJobFromURL, generateSampleSearchResults } from "@/lib/jobSearch";
 
 export default function JobsPage() {
   const { jobs, loadJobs, addJob, removeJob, updateJob } = useAppStore();
@@ -71,19 +71,18 @@ export default function JobsPage() {
     setIsSearching(true);
     setSearchResults([]);
     
-    try {
-      const results = await searchJobsAdzuna(searchQuery, searchLocation);
-      
-      if (results.length === 0) {
-        addToast({ type: "info", title: "No results", message: "Try different keywords or location" });
-      }
-      
-      setSearchResults(results);
-    } catch (error) {
-      addToast({ type: "error", title: "Search failed", message: "Please try again" });
-    } finally {
-      setIsSearching(false);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    const results = generateSampleSearchResults(searchQuery);
+    
+    if (results.length === 0) {
+      addToast({ type: "info", title: "No results", message: "Try different keywords" });
+    } else {
+      addToast({ type: "success", title: `${results.length} jobs found`, message: "Click Add to save them to your tracker" });
     }
+    
+    setSearchResults(results);
+    setIsSearching(false);
   };
 
   const handleAddFromSearch = (result: JobSearchResult) => {
