@@ -10,6 +10,101 @@ export interface JobSearchResult {
   source: string;
 }
 
+export interface JSearchResponse {
+  status: string;
+  request_id: string;
+  parameters: {
+    query: string;
+    page: number;
+    num_pages: number;
+    date_posted?: string;
+  };
+  data: JSearchJob[];
+}
+
+export interface JSearchJob {
+  job_id: string;
+  job_title: string;
+  employer_name: string;
+  employer_logo: string | null;
+  job_city: string | null;
+  job_state: string | null;
+  job_country: string;
+  job_google_link: string;
+  job_posted_at_datetime_utc: string;
+  job_description: string;
+  job_min_salary: number | null;
+  job_max_salary: number | null;
+  job_salary_period: string;
+  job_employment_type: string;
+  job_benefits: string | null;
+  job_qualifications: string | null;
+}
+
+export async function searchJobs(query: string, location?: string): Promise<JobSearchResult[]> {
+  try {
+    const searchQuery = location ? `${query} in ${location}` : query;
+    const url = `/api/jsearch?query=${encodeURIComponent(searchQuery)}`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error("JSearch API error:", response.status);
+      return [];
+    }
+
+    const data: JSearchResponse = await response.json();
+
+    if (data.status !== "OK" || !data.data) {
+      return [];
+    }
+
+    return data.data.map((job) => ({
+      id: `jsearch-${job.job_id}`,
+      title: job.job_title,
+      company: job.employer_name || "Unknown",
+      location: [job.job_city, job.job_state, job.job_country].filter(Boolean).join(", ") || "Remote",
+      salary: job.job_min_salary && job.job_max_salary
+        ? {
+            min: job.job_min_salary,
+            max: job.job_max_salary,
+            currency: "USD",
+          }
+        : undefined,
+      description: cleanDescription(job.job_description),
+      url: job.job_google_link || "#",
+      postedDate: job.job_posted_at_datetime_utc || new Date().toISOString(),
+      source: extractSource(job.job_google_link || ""),
+    }));
+  } catch (error) {
+    console.error("Job search error:", error);
+    return [];
+  }
+}
+
+function cleanDescription(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractSource(url: string): string {
+  const lower = url.toLowerCase();
+  if (lower.includes("linkedin")) return "LinkedIn";
+  if (lower.includes("indeed")) return "Indeed";
+  if (lower.includes("ziprecruiter")) return "ZipRecruiter";
+  if (lower.includes("glassdoor")) return "Glassdoor";
+  if (lower.includes("monster")) return "Monster";
+  if (lower.includes("simplyhired")) return "SimplyHired";
+  return "Job Board";
+}
+
 export function parseJobFromURL(url: string): Partial<JobSearchResult> {
   const result: Partial<JobSearchResult> = {
     url,
@@ -144,7 +239,12 @@ export function generateSampleSearchResults(query: string): JobSearchResult[] {
   const queryLower = query.toLowerCase();
   
   return titles
-    .filter(title => title.toLowerCase().includes(queryLower) || queryLower === "job" || queryLower === "engineer" || queryLower === "developer")
+    .filter(title => 
+      title.toLowerCase().includes(queryLower) || 
+      queryLower === "job" || 
+      queryLower === "engineer" || 
+      queryLower === "developer"
+    )
     .slice(0, 5)
     .map((title, i) => {
       const company = companies[Math.floor(Math.random() * companies.length)];
